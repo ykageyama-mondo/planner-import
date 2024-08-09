@@ -7,12 +7,12 @@ export interface Bucket {
 
 export class PlannerClient {
   client: AxiosInstance
-  constructor(planId: string, org: string, auth: {
+  constructor(planId: string, tenant: string, auth: {
     oidcToken: string,
     routeHint: string,
   }) {
     this.client = axios.create({
-      baseURL: `https://tasks.office.com/${org}/TasksApiV1`,
+      baseURL: `https://tasks.office.com/${tenant}/TasksApiV1`,
       headers: {
         Cookie: `PlannerRouteHint=${auth.routeHint}; plannerauth-oidc=${auth.oidcToken};`
       },

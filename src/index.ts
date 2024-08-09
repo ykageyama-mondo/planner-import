@@ -11,7 +11,7 @@ const trelloClient = new TrelloClient({
   }
 })
 
-const plannerClient = new PlannerClient(env.PLAN_ID, env.PLANNER_ORG, {
+const plannerClient = new PlannerClient(env.PLAN_ID, env.PLANNER_TENANT, {
   oidcToken: env.PLANNER_OIDC,
   routeHint: env.PLANNER_ROUTE_HINT
 })

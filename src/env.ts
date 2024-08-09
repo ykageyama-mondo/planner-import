@@ -8,6 +8,6 @@ export const env = {
   BOARD_ID: process.env.BOARD_ID!,
   PLANNER_OIDC: process.env.PLANNER_OIDC!,
   PLANNER_ROUTE_HINT: process.env.PLANNER_ROUTE_HINT!,
-  PLANNER_ORG: process.env.PLANNER_ORG!,
+  PLANNER_TENANT: process.env.PLANNER_TENANT!,
   PLAN_ID: process.env.PLAN_ID!
 }
