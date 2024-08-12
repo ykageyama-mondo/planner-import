@@ -4,15 +4,25 @@ export interface ChecklistItem {
   title: string;
   isChecked: boolean;
 }
-export interface Card {
+export interface Attachment {
   name: string,
-  listName: string,
+  url: string
+}
+export interface BaseCard {
+  name: string,
   checklist: ChecklistItem[],
   labels: string[],
-  description: string
+  description: string,
+  attachments: Array<Attachment>
 }
 
-export async function importPlan(client: PlannerClient) {
+export interface Card extends BaseCard{
+  listId: string,
+}
+export interface PlannerCard extends BaseCard{
+  bucketId: string,
+}
+export async function importPlan(client: PlannerClient, keepDone: boolean) {
 
   const [plan, buckets, tasks] = await Promise.all([
     client.getPlan(),
@@ -21,13 +31,15 @@ export async function importPlan(client: PlannerClient) {
   ])
 
   const categoryLookup = plan.data.Details.Categories
-  const bucketLookup = buckets.data.Results.reduce((agg, v) => {
-    agg[v.Bucket.Id] = v.Bucket.Title
-    return agg
-  }, {} as Record<string, string>)
 
-  const parsedTasks = tasks.data.Results.map((v): Card => {
+  const parsedTasks = tasks.data.Results.sort((a, b) =>
+    orderHintSort(a.BucketTaskBoardFormat.OrderHint, b.BucketTaskBoardFormat.OrderHint)
+  ).map((v): PlannerCard | undefined => {
     const labels = v.Task.AppliedCategories ? v.Task.AppliedCategories.map(v => categoryLookup[v]) : []
+
+    if (!keepDone && v.Task.CompletedDate) {
+      return
+    }
 
     if (v.Task.CompletedDate) {
       labels.push('Done')
@@ -35,17 +47,38 @@ export async function importPlan(client: PlannerClient) {
 
     return {
       name: v.Task.Title,
-      listName: bucketLookup[v.Task.BucketId],
+      bucketId: v.Task.BucketId,
       description: v.Details.Description,
       checklist: Object.values(v.Details.Checklist).map(v => ({
         title: v.Title,
         isChecked: v.IsChecked
       })),
       labels,
+      attachments: Object.entries(v.Details.References).map(([url, {Alias}]) => ({
+        url,
+        name: Alias
+      }))
     }
-  })
+  }).filter((x): x is PlannerCard => Boolean(x))
   return {
-    lists: buckets.data.Results.map(v => v.Bucket.Title),
+    buckets: buckets.data.Results
+      .sort((a, b) => orderHintSort(a.Bucket.OrderHint, b.Bucket.OrderHint))
+      .map(v => ({
+        id: v.Bucket.Id,
+        name: v.Bucket.Title
+      })),
     tasks: parsedTasks
   }
+}
+
+// Sort by descending order hint https://learn.microsoft.com/en-us/graph/api/resources/planner-order-hint-format?view=graph-rest-1.0
+function orderHintSort(a: string, b: string) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] === b[i]) {
+      continue
+    }
+    return a.charCodeAt(i) - b.charCodeAt(i)
+  }
+
+  return 0
 }

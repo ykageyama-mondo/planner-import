@@ -2,6 +2,7 @@ import {env} from './env'
 import {importPlan, Card} from './import'
 import {Color, TrelloClient} from './trello'
 import {PlannerClient} from './planner'
+import axios from 'axios'
 
 const trelloClient = new TrelloClient({
   boardId: env.BOARD_ID,
@@ -17,18 +18,22 @@ const plannerClient = new PlannerClient(env.PLAN_ID, env.PLANNER_TENANT, {
 })
 
 async function  main() {
-  const plan = await importPlan(plannerClient)
-  const listLookup: Record<string, string> = {}
+  const plan = await importPlan(plannerClient, env.KEEP_DONE)
 
-  for (const list of plan.lists) {
-    const {id} = await trelloClient.createList(list)
-    listLookup[list] = id
+  // bucket id to list id map
+  const listLookup: Record<string, string> = {}
+  for (const bucket of plan.buckets) {
+    const {id} = await trelloClient.createList(bucket.name)
+    listLookup[bucket.id] = id
   }
 
-  const listGroups = plan.tasks.reduce((agg, v): Record<string, Card[]> => {
-    agg[v.listName] ??= []
+  // group tasks by list id
+  const listGroups = plan.tasks.reduce((agg, {bucketId, ...rest}): Record<string, Card[]> => {
+    const listId = listLookup[bucketId]
 
-    agg[v.listName].push(v)
+    agg[listId] ??= []
+
+    agg[listId].push({...rest, listId: listId})
     return agg
   }, {} as Record<string, Card[]>)
 
@@ -42,22 +47,21 @@ async function  main() {
     const {id} = await trelloClient.createLabel(label, color)
     labelMap.set(label, id)
   }))
-  for (const listName in listGroups) {
-    const listId = listLookup[listName]
+  await Promise.all(Object.keys(listGroups).map(async listId => {
+    const cards = listGroups[listId]
 
-    const cards = listGroups[listName]
-
-    await Promise.all(cards.map(async card => {
+    for (const card of cards) {
       const labels = card.labels.map(label => labelMap.get(label)!)
-
       const {id: cardId} = await trelloClient.createCard(listId, {...card, labels})
-
       if (card.checklist.length) {
         await trelloClient.createChecklist(cardId, 'Checklist', card.checklist)
       }
-    }))
 
-  }
+      if (card.attachments.length) {
+        await trelloClient.createAttachments(cardId, card.attachments)
+      }
+    }
+  }))
 }
 
 main()

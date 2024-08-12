@@ -6,6 +6,7 @@ export const env = {
   API_KEY: process.env.API_KEY!,
   TOKEN: process.env.TOKEN!,
   BOARD_ID: process.env.BOARD_ID!,
+  KEEP_DONE: process.env.KEEP_DONE === 'true',
   PLANNER_OIDC: process.env.PLANNER_OIDC!,
   PLANNER_ROUTE_HINT: process.env.PLANNER_ROUTE_HINT!,
   PLANNER_TENANT: process.env.PLANNER_TENANT!,

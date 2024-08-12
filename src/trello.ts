@@ -1,6 +1,6 @@
 import axios, {AxiosInstance} from 'axios'
 import {RateLimiter} from 'limiter'
-import {Card, ChecklistItem} from './import'
+import {Attachment, Card, ChecklistItem} from './import'
 
 interface Props {
   boardId: string,
@@ -69,6 +69,15 @@ export class TrelloClient {
       this.post('/checklists/' + id + '/checkItems', {
         name: item.title,
         checked: item.isChecked
+      })
+    ))
+  }
+
+  async createAttachments(cardId: string, attachments: Array<Attachment>) {
+    await Promise.all(attachments.map(async attachment =>
+      this.post('/cards/' + cardId + '/attachments', {
+        url: attachment.url,
+        name: attachment.name
       })
     ))
   }

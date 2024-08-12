@@ -3,6 +3,7 @@ import axios, {AxiosInstance} from 'axios'
 export interface Bucket {
   Title: string,
   Id: string,
+  OrderHint: string,
 }
 
 export class PlannerClient {
@@ -38,6 +39,9 @@ export class PlannerClient {
   async getTasks() {
     return this.client.get<{
       Results: Array<{
+        BucketTaskBoardFormat: {
+          OrderHint: string
+        },
         Task: {
           Title: string,
           BucketId: string,
@@ -47,14 +51,14 @@ export class PlannerClient {
         Details: {
           Description: string,
           Checklist: Record<string, {IsChecked: boolean,Title: string,}>,
+          References: Record<string, {
+            Alias: string,
+          }>
         }
       }>
     }>('GetTasksForPlan')
   }
 
-  /**
-   * Returns list of buckets in reverse order
-   */
   async getBuckets() {
     return this.client.get<{Results: Array<{Bucket: Bucket}>}>('GetBucketsInPlan')
   }
