@@ -21,6 +21,12 @@ export class SharepointClient {
 
 
   async getFile(url: string) {
-    return this.client.get(url)
+    return this.client.get(this.parseUrl(url))
+  }
+
+  parseUrl(url: string) {
+    if (url.includes('.pdf?web=1'))
+      return url.replace('.pdf?web=1', '.pdf')
+    return url
   }
 }

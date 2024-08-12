@@ -60,9 +60,19 @@ async function  main() {
 
     for (const card of cards) {
       const labels = card.labels.map(label => labelMap.get(label)!)
-      const {id: cardId} = await trelloClient.createCard(listId, {...card, labels})
+      let cardId = ''
+
+      try {
+        cardId = (await trelloClient.createCard(listId, {...card, labels})).id
+      } catch (error) {
+        console.log(`Failed to create card ${card.name}`, (error as Error).message)
+      }
       if (card.checklist.length) {
-        await trelloClient.createChecklist(cardId, 'Checklist', card.checklist)
+        try {
+          await trelloClient.createChecklist(cardId, 'Checklist', card.checklist)
+        } catch (error) {
+          console.log(`Failed to create checklist for card ${card.name}`, (error as Error).message)
+        }
       }
 
       if (card.attachments.length) {

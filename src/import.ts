@@ -36,7 +36,7 @@ export async function importPlan(client: PlannerClient, keepDone: boolean) {
   const parsedTasks = tasks.data.Results.sort((a, b) =>
     orderHintSort(a.BucketTaskBoardFormat.OrderHint, b.BucketTaskBoardFormat.OrderHint)
   ).map((v): PlannerCard | undefined => {
-    const labels = v.Task.AppliedCategories ? v.Task.AppliedCategories.map(v => categoryLookup[v]) : []
+    const labels = v.Task.AppliedCategories ? v.Task.AppliedCategories.map(v => categoryLookup[v]).filter(v=> v) : []
 
     if (!keepDone && v.Task.CompletedDate) {
       return
