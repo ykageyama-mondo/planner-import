@@ -1,13 +1,18 @@
-import axios, {AxiosInstance} from 'axios'
+import axios, {AxiosInstance, isAxiosError} from 'axios'
 import {RateLimiter} from 'limiter'
 import {Attachment, Card, ChecklistItem} from './import'
-
+import mime from 'mime'
+import fs from 'fs'
+import {randomUUID} from 'crypto'
+import path from 'path'
+import {SharepointClient} from './sharepoint'
 interface Props {
   boardId: string,
   auth: {
     apiKey: string,
     token: string
-  }
+  },
+  sharepointClient: SharepointClient
 }
 export enum Color {
   Yellow = 'yellow',
@@ -21,8 +26,10 @@ export enum Color {
   Pink = 'pink',
   Lime = 'lime'
 }
+const tmpDir = '.tmp'
 export class TrelloClient {
   client: AxiosInstance
+  sharepointClient: SharepointClient
   boardId: string
   limiter: RateLimiter
   constructor(props: Props) {
@@ -31,13 +38,20 @@ export class TrelloClient {
       params: {
         key: props.auth.apiKey,
         token: props.auth.token
-      }
+      },
+      timeout: 10_000,
     })
+    this.sharepointClient = props.sharepointClient
     this.limiter = new RateLimiter({
       tokensPerInterval: 50,
       interval: 10 * 1000
     })
     this.boardId = props.boardId
+
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, {recursive: true})
+    }
+    fs.mkdirSync(tmpDir)
   }
 
   /**
@@ -74,12 +88,53 @@ export class TrelloClient {
   }
 
   async createAttachments(cardId: string, attachments: Array<Attachment>) {
-    await Promise.all(attachments.map(async attachment =>
-      this.post('/cards/' + cardId + '/attachments', {
+    await Promise.all(attachments.map(async attachment => {
+      const body = {
+        name: attachment.name,
         url: attachment.url,
-        name: attachment.name
-      })
-    ))
+        setCover: 'false'
+      } as Record<string, any>
+      try {
+        if (SharepointClient.isSharepointUrl(attachment.url)) {
+          const {
+            mimeType,
+            fpath
+          } = await withRetry(async () => {
+            const response = await this.sharepointClient.getFile(attachment.url)
+            const data = response.data
+            const ext = mime.getExtension(response.headers['content-type'] || '')
+            const loc = path.join(tmpDir, `${randomUUID()}.${ext}`) // random file name to prevent naming clashes during concurrent requests
+            fs.writeFileSync(loc, data, 'binary')
+            const mimeType = response.headers['content-type']
+            if (!mimeType || !ext) {
+              throw new Error(`Failed to get attachment for cardId ${cardId}. Unknown mime type for ${loc}`)
+            }
+            return {
+              mimeType,
+              fpath: loc
+            }
+          }, 1)
+          body.mimeType = mimeType
+          body.file = fs.createReadStream(fpath)
+          body.setCover = attachment.setCover ? 'true' : 'false'
+        }
+        await this.post('/cards/' + cardId + '/attachments', body, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+      } catch (error) {
+        delete body.file
+        delete body.mimeType
+        body.setCover = 'false'
+        await this.post('/cards/' + cardId + '/attachments', body, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        throw new Error('Failed to upload attachment from saved file. Reverted to URL attachment')
+      }
+    }))
   }
 
   async createLabel(name: string, color: Color) {
@@ -98,13 +153,17 @@ export class TrelloClient {
   }
 }
 
-const withRetry = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
+const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 100): Promise<T> => {
   try {
     return await fn()
   } catch (error) {
     if (retries === 0) {
+      if (isAxiosError(error)) {
+        throw new Error(`Failed to make request. ${error.name} ${error.message} ${error.code} ${error.cause}`)
+      }
       throw error
     }
+    await new Promise(resolve => setTimeout(resolve, delay))
     return withRetry(fn, retries - 1)
   }
 }

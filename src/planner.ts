@@ -50,9 +50,10 @@ export class PlannerClient {
         },
         Details: {
           Description: string,
-          Checklist: Record<string, {IsChecked: boolean,Title: string,}>,
+          Checklist: Record<string, {IsChecked: boolean,Title: string, OrderHint: string,}>,
           References: Record<string, {
             Alias: string,
+            PreviewPriority: string,
           }>
         }
       }>

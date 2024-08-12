@@ -10,5 +10,7 @@ export const env = {
   PLANNER_OIDC: process.env.PLANNER_OIDC!,
   PLANNER_ROUTE_HINT: process.env.PLANNER_ROUTE_HINT!,
   PLANNER_TENANT: process.env.PLANNER_TENANT!,
-  PLAN_ID: process.env.PLAN_ID!
+  PLAN_ID: process.env.PLAN_ID!,
+  SHAREPONT_RTFA: process.env.SHAREPONT_RTFA!,
+  SHAREPOINT_FED_AUTH: process.env.SHAREPOINT_FED_AUTH!,
 }

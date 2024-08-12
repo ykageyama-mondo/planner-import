@@ -6,7 +6,8 @@ export interface ChecklistItem {
 }
 export interface Attachment {
   name: string,
-  url: string
+  url: string,
+  setCover: boolean,
 }
 export interface BaseCard {
   name: string,
@@ -49,14 +50,17 @@ export async function importPlan(client: PlannerClient, keepDone: boolean) {
       name: v.Task.Title,
       bucketId: v.Task.BucketId,
       description: v.Details.Description,
-      checklist: Object.values(v.Details.Checklist).map(v => ({
+      checklist: Object.values(v.Details.Checklist).sort((a, b) =>
+        orderHintSort(b.OrderHint, a.OrderHint)
+      ).map(v => ({
         title: v.Title,
         isChecked: v.IsChecked
       })),
       labels,
-      attachments: Object.entries(v.Details.References).map(([url, {Alias}]) => ({
+      attachments: Object.entries(v.Details.References).map(([url, {Alias, PreviewPriority}]) => ({
         url,
-        name: Alias
+        name: Alias,
+        setCover: PreviewPriority.length > 3
       }))
     }
   }).filter((x): x is PlannerCard => Boolean(x))

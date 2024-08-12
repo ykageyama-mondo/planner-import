@@ -2,14 +2,21 @@ import {env} from './env'
 import {importPlan, Card} from './import'
 import {Color, TrelloClient} from './trello'
 import {PlannerClient} from './planner'
-import axios from 'axios'
+import {SharepointClient} from './sharepoint'
+
+const sharepointClient = new SharepointClient({
+  rtFa: env.SHAREPONT_RTFA,
+  fedAuth: env.SHAREPOINT_FED_AUTH,
+})
+
 
 const trelloClient = new TrelloClient({
   boardId: env.BOARD_ID,
   auth: {
     apiKey: env.API_KEY,
     token: env.TOKEN
-  }
+  },
+  sharepointClient
 })
 
 const plannerClient = new PlannerClient(env.PLAN_ID, env.PLANNER_TENANT, {
@@ -47,6 +54,7 @@ async function  main() {
     const {id} = await trelloClient.createLabel(label, color)
     labelMap.set(label, id)
   }))
+  let created = 0
   await Promise.all(Object.keys(listGroups).map(async listId => {
     const cards = listGroups[listId]
 
@@ -58,8 +66,14 @@ async function  main() {
       }
 
       if (card.attachments.length) {
-        await trelloClient.createAttachments(cardId, card.attachments)
+        try {
+          await trelloClient.createAttachments(cardId, card.attachments)
+        } catch (error) {
+          console.log(`Failed to create some attachments for card ${card.name}`, (error as Error).message)
+        }
       }
+      created++;
+      console.log(`Progress: ${created}/${plan.tasks.length}`)
     }
   }))
 }

@@ -17,6 +17,7 @@
   "dependencies": {
     "axios": "^1.7.3",
     "dotenv": "^16.4.5",
-    "limiter": "^2.1.0"
+    "limiter": "^2.1.0",
+    "mime": "^4.0.4"
   }
 }
